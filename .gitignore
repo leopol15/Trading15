@@ -1,0 +1,5 @@
+data/
+data_old/
+*.parquet
+__pycache__/
+research_is.csv
