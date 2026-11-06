@@ -102,3 +102,39 @@ python3 crypto_trend.py        # all pre-set strategies, IS / OOS / full
 python3 robustness.py          # every rule on every coin, late execution, 2x costs
 python3 btc_trend_ensemble.py  # final strategy + chart
 ```
+
+---
+
+# EMA-50 first-touch strategy (daily) — `ema50_touch.py`
+
+**Rules:** long only, daily candles.
+1. Michael's EMA bands are green (EMA12 > EMA21).
+2. EMAs are stacked EMA50 > EMA100 > EMA200.
+3. Price touches EMA50 coming from above. Buy at the EMA50.
+4. Only the **first** touch since the bands turned green.
+
+The main exit is when the bands turn red. Costs are 0.15% per side, with no tuning.
+
+**BTC result (2019-07 → 2026-10, 27 trades):** −46.4% total, 37% win rate, average trade −2.2%,
+max drawdown −52%. BTC buy & hold over the same span made +949%.
+
+**Why it fails:** when price pulls back to EMA50, the faster EMA12/21 bands are almost always
+about to turn red. So the main exit fires 1–5 days after entry (time in market only 3%), and
+the trade is closed at the bottom of the pullback.
+
+| Exit (BTC) | Trades | Win % | Avg trade | Total | Max DD |
+|---|---:|---:|---:|---:|---:|
+| **Bands turn red (main)** | 27 | 37.0 | −2.2% | **−46.4%** | −52.0% |
+| Close < EMA100 | 17 | 23.5 | +3.0% | +30.7% | −51.4% |
+| Close < EMA200 | 12 | 25.0 | +20.9% | +116.7% | −66.3% |
+| EMA stack breaks | 10 | 40.0 | +23.5% | +77.0% | −64.9% |
+| Stop at EMA100, target 2R | 24 | 25.0 | −1.7% | −41.6% | −56.9% |
+
+The slower exits make money, but every one of them is far below buy & hold (+949%), with
+drawdowns of −51% to −66%.
+
+On the other 11 coins (main exit), 8 of 12 coins end positive. The gains come almost
+entirely from one or two huge trades (BNB +1,260%, ADA +1,029% in early 2021). Every coin
+except ADA (and EOS, which fell) made less than simply holding it. Details are in
+`results/ema50_touch_per_coin.csv`, the trades in `results/ema50_touch_btc_trades.csv`, and
+the chart in `results/ema50_touch_btc.png`.
