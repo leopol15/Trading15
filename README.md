@@ -1,5 +1,9 @@
 # Trading15 — BTC backtest: 4H liquidity → 15m BOS retest → daily VP targets + Michael's EMA bands + EMA 50/100/200
 
+> **Newer work:** the liquidity/BOS strategy below did not hold up out of sample. A separate,
+> more robust approach (BTC trend ensemble, profitable in- and out-of-sample) is in
+> [`research/README.md`](research/README.md).
+
 **Data:** Binance BTCUSDT spot, 15m candles, 1 Jan 2023 – 31 Oct 2026 (134,395 candles).
 **Sizing:** $10,000 start, 1% of equity risked per trade, 0.04% fee per side.
 
