@@ -3,6 +3,19 @@
 **Data:** Binance BTCUSDT spot, 15m candles, 1 Jan 2023 – 31 Oct 2026 (134,395 candles).
 **Sizing:** $10,000 start, 1% of equity risked per trade, 0.04% fee per side.
 
+## ⚠️ Out-of-sample check (2020–2022) — not a profitable strategy
+
+All variants were tuned on 2023–2026. Run **unchanged** on 2020–2022 (data never used for tuning):
+
+| Version | 2023–2026 (tuned on) | 2020–2022 (unseen) | 2020 / 2021 / 2022 |
+|---|---:|---:|---|
+| EMA S/R, no bands (best in-sample) | +22.0 R, +23.1% | **−20.7 R, −19.1%**, PF 0.53 | −5.1 / −3.8 / −11.8 R |
+| 15m bands + EMA S/R | +1.0 R, +0.4% | **−15.1 R, −14.3%**, PF 0.48 | −5.3 / −1.9 / −8.0 R |
+| Original rules | −24.0 R, −23.3% | **−31.4 R, −28.5%**, PF 0.73 | −22.7 / +4.7 / −13.3 R |
+
+The in-sample gains came from filters that fit the 2023–2026 period and did not carry over.
+Reproduce: download 2020–2022 into `data/oos/` and run `run(load_15m("data/oos/*.csv"), Params(...))`.
+
 ## Result (rules as given)
 
 Everything is traded on **15m**; the 4H chart is only used to mark liquidity.
