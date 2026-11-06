@@ -23,7 +23,9 @@ Rules (as implemented)
                             (swing high) above entry, whichever is closer (= hit first).
                    SHORT -> take profit at VAL or the nearest 4H sell-side liquidity,
                             whichever is closer. Stop loss as above.
-7. Session       : entries only 10:00-22:00 Europe/Sofia (Plovdiv). Pending orders are
+7. Michael bands: EMA 12/21 on band_tf. A long BOS is only taken while the band is
+                   green (EMA12 > EMA21), a short BOS only while it is red.
+8. Session       : entries only 10:00-22:00 Europe/Sofia (Plovdiv). Pending orders are
                    cancelled at 22:00. Open trades are NOT closed at 22:00 - they run
                    until TP or SL (set flat_at_session_end=True to force-close).
 Conservative fill assumptions: if SL and TP are both inside one candle, SL is assumed;
@@ -58,6 +60,13 @@ class Params:
     start_equity: float = 10_000.0
     tz: str = "Europe/Sofia"
     sides: tuple = ("long", "short")
+    # Michael's EMA bands (EMA fast/slow). Green = fast > slow -> longs only,
+    # red = fast < slow -> shorts only. band_tf=None disables the filter.
+    band_tf: str | None = "4h"
+    band_fast: int = 12
+    band_slow: int = 21
+    band_mode: str = "cross"     # "cross": colour from fast vs slow
+                                 # "slope": green only if both EMAs rise, red only if both fall
 
 
 # ----------------------------------------------------------------- data
@@ -140,6 +149,31 @@ def liquidity_4h(df: pd.DataFrame, p: Params):
     return h4, highs, lows
 
 
+# ----------------------------------------------------------------- Michael's EMA bands
+def michael_bands(df: pd.DataFrame, p: Params) -> np.ndarray:
+    """Band colour known at the CLOSE of each 15m candle: +1 green, -1 red, 0 neutral.
+    Uses only completed candles of the band timeframe (no look-ahead)."""
+    n = len(df)
+    if p.band_tf is None:
+        return np.zeros(n)
+    tf = pd.Timedelta(p.band_tf)
+    if tf == pd.Timedelta("15min"):
+        close = df["close"]
+    else:
+        close = df["close"].resample(p.band_tf).last().dropna()
+    fast = close.ewm(span=p.band_fast, adjust=False).mean()
+    slow = close.ewm(span=p.band_slow, adjust=False).mean()
+    if p.band_mode == "slope":
+        up = (fast.diff() > 0) & (slow.diff() > 0)
+        dn = (fast.diff() < 0) & (slow.diff() < 0)
+        col = pd.Series(np.where(up, 1, np.where(dn, -1, 0)), index=close.index)
+    else:
+        col = pd.Series(np.sign(fast - slow).values, index=close.index)
+    col.index = col.index + tf                      # value is known when the bar closes
+    bar_close = df.index + pd.Timedelta("15min")    # when each 15m candle closes
+    return col.reindex(bar_close, method="ffill").fillna(0).values
+
+
 # ----------------------------------------------------------------- engine
 @dataclass
 class Trade:
@@ -174,6 +208,7 @@ def run(df: pd.DataFrame, p: Params):
     val_arr = vp["val"].reindex(day_key).values
 
     ph15, pl15 = pivots(h, l, p.piv_15m)
+    band = michael_bands(df, p)
 
     active_hi: list[float] = []; active_lo: list[float] = []
     hi_ptr = lo_ptr = 0
@@ -277,14 +312,16 @@ def run(df: pd.DataFrame, p: Params):
                 if setup["side"] == "long":
                     setup["extreme"] = min(setup["extreme"], l[i])
                     ref = last_sh   # latest confirmed 15m swing high
-                    if i > setup["start"] and ref is not None and c[i] > ref:
+                    if i > setup["start"] and ref is not None and c[i] > ref \
+                            and (p.band_tf is None or band[i] > 0):
                         order = _make_order(setup, ref, i, now, p, vah_arr, val_arr,
                                             active_hi, active_lo)
                         setup = None
                 else:
                     setup["extreme"] = max(setup["extreme"], h[i])
                     ref = last_sl   # latest confirmed 15m swing low
-                    if i > setup["start"] and ref is not None and c[i] < ref:
+                    if i > setup["start"] and ref is not None and c[i] < ref \
+                            and (p.band_tf is None or band[i] < 0):
                         order = _make_order(setup, ref, i, now, p, vah_arr, val_arr,
                                             active_hi, active_lo)
                         setup = None

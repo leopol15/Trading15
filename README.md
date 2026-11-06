@@ -1,70 +1,75 @@
-# Trading15 — BTC backtest: 4H liquidity → 15m BOS retest → daily VP targets
+# Trading15 — BTC backtest: 4H liquidity → 15m BOS retest → daily VP targets + Michael's EMA bands
 
 **Data:** Binance BTCUSDT spot, 15m candles, 1 Jan 2023 – 31 Oct 2026 (134,395 candles).
 **Sizing:** $10,000 start, 1% of equity risked per trade, 0.04% fee per side.
 
-## Result (rules as given)
+## Result (rules as given, with Michael's EMA bands on 4H)
 
-Trades are **opened** only between 10:00 and 22:00 Plovdiv time; once open they run until
-take-profit or stop-loss, overnight if needed (median hold 5.5 h, longest 10 days).
+**Michael's EMA bands** = EMA 12 / EMA 21 (TradingView "Michael's EMA"). Green (EMA12 > EMA21)
+→ only longs; red (EMA12 < EMA21) → only shorts. Default timeframe here is **4H**, using only
+closed 4H candles. Trades are **opened** 10:00–22:00 Plovdiv time and then run to TP/SL.
 
 | Trades | Win rate | Avg R | Total R | Profit factor | Return | Max DD |
 |---:|---:|---:|---:|---:|---:|---:|
-| 203 | 30.5% | −0.12 | −24.0 R | 0.84 | −23.3% | −28.3% |
+| 64 | 34.4% | −0.14 | −8.8 R | 0.81 | −9.0% | −14.6% |
+
+Without the bands it was 203 trades, −24.0 R, −23.3%, max DD −28.3%. The 4H bands remove about
+two thirds of the trades and cut the loss, but the strategy is still negative.
 
 ![equity](results/equity.png)
 
 | Exit reason | Trades | Avg R | Sum R |
 |---|---:|---:|---:|
-| Stop loss | 141 | −1.10 | −155.5 |
-| TP at VAH (longs) | 34 | +2.34 | +79.7 |
-| TP at VAL (shorts) | 23 | +1.92 | +44.2 |
-| TP at 4H liquidity | 5 | +1.51 | +7.6 |
+| Stop loss | 42 | −1.13 | −47.5 |
+| TP at VAH (longs) | 15 | +1.90 | +28.5 |
+| TP at VAL (shorts) | 5 | +1.47 | +7.4 |
+| TP at 4H liquidity | 2 | +1.41 | +2.8 |
 
 | Year | Trades | Win rate | Net R |
 |---|---:|---:|---:|
-| 2023 | 37 | 27.0% | −7.6 |
-| 2024 | 57 | 33.3% | +1.7 |
-| 2025 | 65 | 38.5% | +5.8 |
-| 2026 | 44 | 18.2% | −23.9 |
+| 2023 | 15 | 33.3% | −1.2 |
+| 2024 | 17 | 23.5% | −6.1 |
+| 2025 | 20 | 50.0% | +3.9 |
+| 2026 | 12 | 25.0% | −5.4 |
 
 | Side | Trades | Net R |
 |---|---:|---:|
-| Longs | 93 | **+20.1** |
-| Shorts | 110 | **−44.1** |
+| Longs (green band) | 33 | **+8.2** |
+| Shorts (red band) | 31 | **−17.0** |
 
-**Verdict:** with both directions the strategy loses (−23%). The damage comes from the
-**shorts**; the long side is profitable on its own:
+**Band timeframe matters a lot.** This is a reversal setup (sweep a low → go long), while the
+bands follow the trend. Sweeping a low usually turns a fast band red, so the long gets blocked:
+* **15m bands:** 49 trades, +5.7 R, PF 1.15, +5.2%, max DD −6.3%. This is the only band
+  timeframe that is positive with both directions.
+* **1H bands:** only 3 trades in almost 4 years; the band almost never flips back in time.
+* **4H bands:** 64 trades, −8.8 R (the result above).
+* **1D bands:** 104 trades, −21.5 R.
 
-* **Longs only:** 97 trades, 39% win rate, +24.3 R, PF 1.34, +25.4%, max DD −7.4%
-  (by year: 2023 +8.8 R, 2024 +1.3 R, 2025 +18.3 R, 2026 −4.1 R).
-* **Longs only + BOS within 2h of the sweep:** 41 trades, 49% win rate, +29.8 R, PF 2.26,
-  +33.4%, max DD −4.8%.
+As before, the shorts are the problem. **4H bands, longs only:** 33 trades, 45.5% win rate,
++8.2 R, PF 1.36, +8.1%, max DD −5.8%. Without the bands, longs only gave +24.3 R on 97 trades,
+so for longs the band filter removes more winners than losers.
 
-Caveats: BTC went from ~$16.5k to ~$78k in this period, so a long bias is partly the market's
-trend; 41–97 trades is a small sample; and the "longs only / 2h" filters were picked *after*
-seeing these results, so they need checking on other data (e.g. 2020–2022, ETH) before being trusted.
+Caveats: sample sizes are small (3–104 trades), BTC rose from ~$16.5k to ~$78k over the period,
+and the best timeframes were chosen after seeing the results.
 
 ## Sensitivity (`results/variants.csv`)
 
 | Variant | Trades | Win % | Avg R | Total R | PF | Return | Max DD |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| **Base (rules as given)** | 203 | 30.5 | −0.12 | −24.0 | 0.84 | −23.3% | −28.3% |
-| No fees | 203 | 30.5 | −0.02 | −4.2 | 0.96 | −6.5% | −19.2% |
-| Force-close at 22:00 | 219 | 35.6 | −0.18 | −40.5 | 0.66 | −34.0% | −35.0% |
-| No min R:R filter | 277 | 40.4 | −0.09 | −23.5 | 0.86 | −23.1% | −29.0% |
-| Min R:R 2 | 133 | 22.6 | −0.20 | −26.3 | 0.77 | −24.6% | −32.1% |
-| 4H pivot strength 3 | 153 | 28.8 | −0.16 | −25.0 | 0.78 | −23.6% | −26.3% |
-| 4H pivot strength 5 | 95 | 22.1 | −0.38 | −35.8 | 0.56 | −30.8% | −31.8% |
-| 15m pivot strength 1 | 317 | 30.0 | +0.07 | +21.4 | 1.05 | +16.1% | −21.8% |
-| 15m pivot strength 3 | 140 | 36.4 | +0.07 | +9.1 | 1.07 | +7.5% | −14.4% |
-| Retest window 4 bars (1h) | 184 | 31.5 | −0.07 | −13.5 | 0.89 | −14.7% | −21.7% |
-| Retest window 16 bars (4h) | 208 | 29.8 | −0.14 | −29.4 | 0.81 | −27.4% | −29.8% |
-| BOS window 8 bars (2h) | 78 | 41.0 | +0.27 | +20.7 | 1.36 | +21.5% | −8.4% |
-| BOS window 32 bars (8h) | 297 | 27.3 | −0.23 | −68.9 | 0.71 | −51.5% | −53.2% |
-| Longs only | 97 | 39.2 | +0.25 | +24.3 | 1.34 | +25.4% | −7.4% |
-| Shorts only | 120 | 24.2 | −0.40 | −47.4 | 0.53 | −38.4% | −38.4% |
-| Longs only + BOS within 2h | 41 | 48.8 | +0.73 | +29.8 | 2.26 | +33.4% | −4.8% |
+| **Base: Michael bands 4H (EMA 12/21)** | 64 | 34.4 | −0.14 | −8.8 | 0.81 | −9.0% | −14.6% |
+| No Michael bands (previous base) | 203 | 30.5 | −0.12 | −24.0 | 0.84 | −23.3% | −28.3% |
+| Michael bands 15m | 49 | 38.8 | +0.12 | +5.7 | 1.15 | +5.2% | −6.3% |
+| Michael bands 1H | 3 | 66.7 | +0.41 | +1.2 | 2.08 | +1.2% | −1.1% |
+| Michael bands 1D | 104 | 29.8 | −0.21 | −21.5 | 0.74 | −20.2% | −26.8% |
+| Michael bands 4H, slope mode | 12 | 33.3 | −0.26 | −3.1 | 0.65 | −3.2% | −4.4% |
+| Michael bands 1H, slope mode | 20 | 35.0 | −0.09 | −1.7 | 0.86 | −1.9% | −9.2% |
+| 4H bands + BOS within 2h | 22 | 45.5 | +0.23 | +5.0 | 1.33 | +4.8% | −4.7% |
+| 4H bands, longs only | 33 | 45.5 | +0.25 | +8.2 | 1.36 | +8.1% | −5.8% |
+| 4H bands, shorts only | 31 | 22.6 | −0.55 | −17.0 | 0.36 | −15.8% | −15.8% |
+| 4H bands, no fees | 64 | 34.4 | −0.02 | −1.1 | 0.96 | −1.7% | −11.1% |
+| 4H bands, force-close at 22:00 | 64 | 31.2 | −0.26 | −16.9 | 0.55 | −15.9% | −18.9% |
+| 4H bands, 15m pivot strength 3 | 37 | 35.1 | −0.09 | −3.2 | 0.87 | −3.5% | −6.2% |
+| 4H bands, min R:R 2 | 34 | 17.6 | −0.46 | −15.8 | 0.51 | −15.0% | −20.1% |
 
 ## How the rules were coded
 
@@ -87,7 +92,11 @@ parameters in `Params` in `backtest.py`):
    offers less than 1:1 are skipped.
 7. **Session** — trades are opened only 10:00–22:00 Europe/Sofia (Plovdiv; daylight-saving
    handled). Unfilled orders are cancelled at 22:00; open trades keep running to TP/SL.
-8. **Conservative fills** — if stop and target are both inside one candle, the stop counts;
+8. **Michael's EMA bands** — EMA 12 / EMA 21 on closed 4H candles (`band_tf`). A long BOS is only
+   taken while the band is green (EMA12 > EMA21), a short BOS only while it is red. If the BOS
+   candle has the wrong colour, the setup keeps waiting for a later BOS inside the window.
+   `band_mode="slope"` is the alternative colouring (green only when both EMAs rise).
+9. **Conservative fills** — if stop and target are both inside one candle, the stop counts;
    on the fill candle only the stop is checked. One position at a time.
 
 ## Reproduce
