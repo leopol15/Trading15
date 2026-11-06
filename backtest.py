@@ -23,7 +23,8 @@ Rules (as implemented)
                             (swing high) above entry, whichever is closer (= hit first).
                    SHORT -> take profit at VAL or the nearest 4H sell-side liquidity,
                             whichever is closer. Stop loss as above.
-7. Michael bands: EMA 12/21 on band_tf. A long BOS is only taken while the band is
+7. EMA 50/100/200: (15m) support/resistance, see Params.sr_modes.
+   Michael bands: EMA 12/21 on band_tf (15m). A long BOS is only taken while the band is
                    green (EMA12 > EMA21), a short BOS only while it is red.
 8. Session       : entries only 10:00-22:00 Europe/Sofia (Plovdiv). Pending orders are
                    cancelled at 22:00. Open trades are NOT closed at 22:00 - they run
@@ -62,11 +63,22 @@ class Params:
     sides: tuple = ("long", "short")
     # Michael's EMA bands (EMA fast/slow). Green = fast > slow -> longs only,
     # red = fast < slow -> shorts only. band_tf=None disables the filter.
-    band_tf: str | None = "4h"
+    band_tf: str | None = "15min"
     band_fast: int = 12
     band_slow: int = 21
     band_mode: str = "cross"     # "cross": colour from fast vs slow
                                  # "slope": green only if both EMAs rise, red only if both fall
+    # EMA 50/100/200 (15m) used as support / resistance.
+    sr_lengths: tuple = (50, 100, 200)
+    sr_tf: str = "15min"
+    sr_tol: float = 0.0015       # "touch" tolerance (0.15%)
+    # "support"  : long only if the sweep wick tagged an EMA (within tol or through it)
+    #              and the BOS candle closed back ABOVE it (EMA held as support);
+    #              short mirror: wick tagged EMA and BOS closed back BELOW it (resistance).
+    # "target"   : an EMA between entry and the VAH/VAL/liq target is resistance (long)
+    #              / support (short) -> take profit there instead.
+    # "trend200" : long only above EMA200, short only below.
+    sr_modes: tuple = ("support",)
 
 
 # ----------------------------------------------------------------- data
@@ -174,6 +186,40 @@ def michael_bands(df: pd.DataFrame, p: Params) -> np.ndarray:
     return col.reindex(bar_close, method="ffill").fillna(0).values
 
 
+def sr_emas(df: pd.DataFrame, p: Params) -> dict:
+    """EMA values known at the close of each 15m candle, per length."""
+    tf = pd.Timedelta(p.sr_tf)
+    out = {}
+    close = df["close"] if tf == pd.Timedelta("15min") else df["close"].resample(p.sr_tf).last().dropna()
+    for n in p.sr_lengths:
+        e = close.ewm(span=n, adjust=False).mean()
+        if tf != pd.Timedelta("15min"):
+            e.index = e.index + tf
+            e = e.reindex(df.index + pd.Timedelta("15min"), method="ffill")
+        out[n] = e.values
+    return out
+
+
+def _sr_ok(side, i, extreme, close_i, emas, p):
+    """Entry filters from EMA 50/100/200."""
+    if "trend200" in p.sr_modes and 200 in emas:
+        e = emas[200][i]
+        if np.isnan(e) or (side == "long" and close_i <= e) or (side == "short" and close_i >= e):
+            return False
+    if "support" in p.sr_modes:
+        held = False
+        for e in (v[i] for v in emas.values()):
+            if np.isnan(e):
+                continue
+            if side == "long" and extreme <= e * (1 + p.sr_tol) and close_i > e:
+                held = True
+            if side == "short" and extreme >= e * (1 - p.sr_tol) and close_i < e:
+                held = True
+        if not held:
+            return False
+    return True
+
+
 # ----------------------------------------------------------------- engine
 @dataclass
 class Trade:
@@ -209,6 +255,7 @@ def run(df: pd.DataFrame, p: Params):
 
     ph15, pl15 = pivots(h, l, p.piv_15m)
     band = michael_bands(df, p)
+    emas = sr_emas(df, p) if p.sr_modes else {}
 
     active_hi: list[float] = []; active_lo: list[float] = []
     hi_ptr = lo_ptr = 0
@@ -313,17 +360,19 @@ def run(df: pd.DataFrame, p: Params):
                     setup["extreme"] = min(setup["extreme"], l[i])
                     ref = last_sh   # latest confirmed 15m swing high
                     if i > setup["start"] and ref is not None and c[i] > ref \
-                            and (p.band_tf is None or band[i] > 0):
+                            and (p.band_tf is None or band[i] > 0) \
+                            and _sr_ok("long", i, setup["extreme"], c[i], emas, p):
                         order = _make_order(setup, ref, i, now, p, vah_arr, val_arr,
-                                            active_hi, active_lo)
+                                            active_hi, active_lo, emas)
                         setup = None
                 else:
                     setup["extreme"] = max(setup["extreme"], h[i])
                     ref = last_sl   # latest confirmed 15m swing low
                     if i > setup["start"] and ref is not None and c[i] < ref \
-                            and (p.band_tf is None or band[i] < 0):
+                            and (p.band_tf is None or band[i] < 0) \
+                            and _sr_ok("short", i, setup["extreme"], c[i], emas, p):
                         order = _make_order(setup, ref, i, now, p, vah_arr, val_arr,
-                                            active_hi, active_lo)
+                                            active_hi, active_lo, emas)
                         setup = None
 
     if pos is not None:
@@ -331,7 +380,7 @@ def run(df: pd.DataFrame, p: Params):
     return trades, equity
 
 
-def _make_order(setup, level, i, now, p, vah_arr, val_arr, active_hi, active_lo):
+def _make_order(setup, level, i, now, p, vah_arr, val_arr, active_hi, active_lo, emas):
     side = setup["side"]
     entry = level
     if side == "long":
@@ -345,6 +394,10 @@ def _make_order(setup, level, i, now, p, vah_arr, val_arr, active_hi, active_lo)
         if not cands:
             return None
         target, src = min(cands)
+        if "target" in p.sr_modes:   # EMA overhead = resistance -> exit there
+            for n_, v in emas.items():
+                if not np.isnan(v[i]) and entry < v[i] < target:
+                    target, src = v[i], f"EMA{n_}"
         risk, reward = entry - stop, target - entry
     else:
         stop = setup["extreme"] * (1 + p.sl_buffer_pct)
@@ -357,6 +410,10 @@ def _make_order(setup, level, i, now, p, vah_arr, val_arr, active_hi, active_lo)
         if not cands:
             return None
         target, src = max(cands)
+        if "target" in p.sr_modes:   # EMA below = support -> exit there
+            for n_, v in emas.items():
+                if not np.isnan(v[i]) and target < v[i] < entry:
+                    target, src = v[i], f"EMA{n_}"
         risk, reward = stop - entry, entry - target
     if risk <= 0 or reward / risk < p.min_rr:
         return None

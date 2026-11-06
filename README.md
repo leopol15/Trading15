@@ -1,75 +1,77 @@
-# Trading15 — BTC backtest: 4H liquidity → 15m BOS retest → daily VP targets + Michael's EMA bands
+# Trading15 — BTC backtest: 4H liquidity → 15m BOS retest → daily VP targets + Michael's EMA bands + EMA 50/100/200
 
 **Data:** Binance BTCUSDT spot, 15m candles, 1 Jan 2023 – 31 Oct 2026 (134,395 candles).
 **Sizing:** $10,000 start, 1% of equity risked per trade, 0.04% fee per side.
 
-## Result (rules as given, with Michael's EMA bands on 4H)
+## Result (rules as given)
 
-**Michael's EMA bands** = EMA 12 / EMA 21 (TradingView "Michael's EMA"). Green (EMA12 > EMA21)
-→ only longs; red (EMA12 < EMA21) → only shorts. Default timeframe here is **4H**, using only
-closed 4H candles. Trades are **opened** 10:00–22:00 Plovdiv time and then run to TP/SL.
+Everything is traded on **15m**; the 4H chart is only used to mark liquidity.
+* **Michael's EMA bands** (EMA 12/21, 15m): green → only longs, red → only shorts.
+* **EMA 50/100/200 (15m) as support / resistance:** a long is only taken if the sweep wick
+  tagged one of the EMAs (or went through it) and the BOS candle closed back **above** it,
+  so the EMA held as support. Shorts are the mirror: the wick tagged an EMA from below and the
+  BOS candle closed back **below** it, so it held as resistance.
+* Trades are **opened** 10:00–22:00 Plovdiv time and run to TP/SL.
 
 | Trades | Win rate | Avg R | Total R | Profit factor | Return | Max DD |
 |---:|---:|---:|---:|---:|---:|---:|
-| 64 | 34.4% | −0.14 | −8.8 R | 0.81 | −9.0% | −14.6% |
+| 44 | 36.4% | +0.02 | +1.0 R | 1.01 | +0.4% | −8.5% |
 
-Without the bands it was 203 trades, −24.0 R, −23.3%, max DD −28.3%. The 4H bands remove about
-two thirds of the trades and cut the loss, but the strategy is still negative.
+Break-even. Longs +5.7 R (22 trades), shorts −4.7 R (22 trades).
+By year: 2023 −2.6 R, 2024 +1.9 R, 2025 +3.4 R, 2026 −1.8 R.
 
 ![equity](results/equity.png)
 
-| Exit reason | Trades | Avg R | Sum R |
-|---|---:|---:|---:|
-| Stop loss | 42 | −1.13 | −47.5 |
-| TP at VAH (longs) | 15 | +1.90 | +28.5 |
-| TP at VAL (shorts) | 5 | +1.47 | +7.4 |
-| TP at 4H liquidity | 2 | +1.41 | +2.8 |
+### Best variant: EMA 50/100/200 support/resistance **without** the Michael bands
+
+| Trades | Win rate | Avg R | Total R | Profit factor | Return | Max DD |
+|---:|---:|---:|---:|---:|---:|---:|
+| 89 | 44.9% | +0.25 | +22.0 R | 1.39 | +23.1% | −10.6% |
 
 | Year | Trades | Win rate | Net R |
 |---|---:|---:|---:|
-| 2023 | 15 | 33.3% | −1.2 |
-| 2024 | 17 | 23.5% | −6.1 |
-| 2025 | 20 | 50.0% | +3.9 |
-| 2026 | 12 | 25.0% | −5.4 |
+| 2023 | 17 | 41.2% | +3.4 |
+| 2024 | 25 | 44.0% | +4.8 |
+| 2025 | 27 | 48.1% | +10.2 |
+| 2026 | 20 | 45.0% | +3.7 |
 
-| Side | Trades | Net R |
-|---|---:|---:|
-| Longs (green band) | 33 | **+8.2** |
-| Shorts (red band) | 31 | **−17.0** |
+Longs +21.7 R (42 trades), shorts +0.4 R (47 trades). This is the first version that is
+positive **every year**. The EMA filter more than halves the trades (203 → 89) and lifts the
+win rate from 30% to 45%. Adding the Michael bands on top removes half of the remaining trades,
+including most of the winners.
 
-**Band timeframe matters a lot.** This is a reversal setup (sweep a low → go long), while the
-bands follow the trend. Sweeping a low usually turns a fast band red, so the long gets blocked:
-* **15m bands:** 49 trades, +5.7 R, PF 1.15, +5.2%, max DD −6.3%. This is the only band
-  timeframe that is positive with both directions.
-* **1H bands:** only 3 trades in almost 4 years; the band almost never flips back in time.
-* **4H bands:** 64 trades, −8.8 R (the result above).
-* **1D bands:** 104 trades, −21.5 R.
+### What didn't work
+* **EMAs as take-profit** (exit at the first EMA in the way): only 4 trades in 4 years. After a
+  sweep, price is almost always below the 50/100/200 EMAs, so there is an EMA right above the
+  entry and the reward-to-risk falls under 1:1.
+* **Trend filter (long only above EMA200):** 15 trades, −2.4 R.
+* **EMAs on 1H or 4H instead of 15m:** −11.5 R and −6.0 R.
 
-As before, the shorts are the problem. **4H bands, longs only:** 33 trades, 45.5% win rate,
-+8.2 R, PF 1.36, +8.1%, max DD −5.8%. Without the bands, longs only gave +24.3 R on 97 trades,
-so for longs the band filter removes more winners than losers.
-
-Caveats: sample sizes are small (3–104 trades), BTC rose from ~$16.5k to ~$78k over the period,
-and the best timeframes were chosen after seeing the results.
+Caveats: 44–89 trades is a small sample, BTC rose from ~$16.5k to ~$78k over the period, and
+the best variant was picked after seeing the results. Test it on 2020–2022 or on ETH before
+trusting it.
 
 ## Sensitivity (`results/variants.csv`)
 
 | Variant | Trades | Win % | Avg R | Total R | PF | Return | Max DD |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| **Base: Michael bands 4H (EMA 12/21)** | 64 | 34.4 | −0.14 | −8.8 | 0.81 | −9.0% | −14.6% |
-| No Michael bands (previous base) | 203 | 30.5 | −0.12 | −24.0 | 0.84 | −23.3% | −28.3% |
-| Michael bands 15m | 49 | 38.8 | +0.12 | +5.7 | 1.15 | +5.2% | −6.3% |
-| Michael bands 1H | 3 | 66.7 | +0.41 | +1.2 | 2.08 | +1.2% | −1.1% |
-| Michael bands 1D | 104 | 29.8 | −0.21 | −21.5 | 0.74 | −20.2% | −26.8% |
-| Michael bands 4H, slope mode | 12 | 33.3 | −0.26 | −3.1 | 0.65 | −3.2% | −4.4% |
-| Michael bands 1H, slope mode | 20 | 35.0 | −0.09 | −1.7 | 0.86 | −1.9% | −9.2% |
-| 4H bands + BOS within 2h | 22 | 45.5 | +0.23 | +5.0 | 1.33 | +4.8% | −4.7% |
-| 4H bands, longs only | 33 | 45.5 | +0.25 | +8.2 | 1.36 | +8.1% | −5.8% |
-| 4H bands, shorts only | 31 | 22.6 | −0.55 | −17.0 | 0.36 | −15.8% | −15.8% |
-| 4H bands, no fees | 64 | 34.4 | −0.02 | −1.1 | 0.96 | −1.7% | −11.1% |
-| 4H bands, force-close at 22:00 | 64 | 31.2 | −0.26 | −16.9 | 0.55 | −15.9% | −18.9% |
-| 4H bands, 15m pivot strength 3 | 37 | 35.1 | −0.09 | −3.2 | 0.87 | −3.5% | −6.2% |
-| 4H bands, min R:R 2 | 34 | 17.6 | −0.46 | −15.8 | 0.51 | −15.0% | −20.1% |
+| **Base: 15m bands + EMA50/100/200 as S/R** | 44 | 36.4 | +0.02 | +1.0 | 1.01 | +0.4% | −8.5% |
+| 15m bands only (no EMA S/R) | 49 | 38.8 | +0.12 | +5.7 | 1.15 | +5.2% | −6.3% |
+| EMA S/R + EMA as take-profit | 4 | 25.0 | −0.47 | −1.9 | 0.4 | −1.9% | −3.1% |
+| EMA S/R + EMA as take-profit, min R:R 0.5 | 15 | 66.7 | +0.10 | +1.6 | 1.28 | +1.5% | −2.9% |
+| EMAs as take-profit only | 4 | 25.0 | −0.47 | −1.9 | 0.4 | −1.9% | −3.1% |
+| EMA S/R: trend200 only | 15 | 33.3 | −0.16 | −2.4 | 0.76 | −2.5% | −7.4% |
+| EMA S/R: support + trend200 | 15 | 33.3 | −0.16 | −2.4 | 0.76 | −2.5% | −7.4% |
+| EMA S/R: all three | 4 | 25.0 | −0.47 | −1.9 | 0.4 | −1.9% | −3.1% |
+| Base, EMAs on 1H | 23 | 21.7 | −0.50 | −11.5 | 0.41 | −11.1% | −11.2% |
+| Base, EMAs on 4H | 14 | 21.4 | −0.43 | −6.0 | 0.5 | −5.9% | −5.9% |
+| Base, touch tolerance 0.3% | 44 | 36.4 | +0.02 | +1.0 | 1.01 | +0.4% | −8.5% |
+| Base, no Michael bands | 89 | 44.9 | +0.25 | +22.0 | 1.39 | +23.1% | −10.6% |
+| No bands, no EMA S/R (original rules) | 203 | 30.5 | −0.12 | −24.0 | 0.84 | −23.3% | −28.3% |
+| Base, longs only | 22 | 40.9 | +0.26 | +5.7 | 1.39 | +5.5% | −8.4% |
+| Base, shorts only | 22 | 31.8 | −0.21 | −4.7 | 0.71 | −4.8% | −6.4% |
+| Base, no fees | 44 | 36.4 | +0.12 | +5.1 | 1.16 | +4.6% | −7.5% |
+| Base, BOS within 2h | 16 | 50.0 | +0.38 | +6.1 | 1.67 | +6.1% | −2.2% |
 
 ## How the rules were coded
 
@@ -92,11 +94,14 @@ parameters in `Params` in `backtest.py`):
    offers less than 1:1 are skipped.
 7. **Session** — trades are opened only 10:00–22:00 Europe/Sofia (Plovdiv; daylight-saving
    handled). Unfilled orders are cancelled at 22:00; open trades keep running to TP/SL.
-8. **Michael's EMA bands** — EMA 12 / EMA 21 on closed 4H candles (`band_tf`). A long BOS is only
+8. **Michael's EMA bands** — EMA 12 / EMA 21 on 15m candles (`band_tf`). A long BOS is only
    taken while the band is green (EMA12 > EMA21), a short BOS only while it is red. If the BOS
    candle has the wrong colour, the setup keeps waiting for a later BOS inside the window.
    `band_mode="slope"` is the alternative colouring (green only when both EMAs rise).
-9. **Conservative fills** — if stop and target are both inside one candle, the stop counts;
+9. **EMA 50/100/200 S/R** (`sr_modes`, 15m) — `support`: the sweep wick came within 0.15% of
+   an EMA (or through it) and the BOS candle closed back on the right side of it. Optional:
+   `target` (take profit at the first EMA in the way) and `trend200` (long only above EMA200).
+10. **Conservative fills** — if stop and target are both inside one candle, the stop counts;
    on the fill candle only the stop is checked. One position at a time.
 
 ## Reproduce
