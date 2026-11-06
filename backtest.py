@@ -24,8 +24,8 @@ Rules (as implemented)
                    SHORT -> take profit at VAL or the nearest 4H sell-side liquidity,
                             whichever is closer. Stop loss as above.
 7. Session       : entries only 10:00-22:00 Europe/Sofia (Plovdiv). Pending orders are
-                   cancelled at 22:00; open trades are closed at 22:00 if
-                   FLAT_AT_SESSION_END is True.
+                   cancelled at 22:00. Open trades are NOT closed at 22:00 - they run
+                   until TP or SL (set flat_at_session_end=True to force-close).
 Conservative fill assumptions: if SL and TP are both inside one candle, SL is assumed;
 on the fill candle only the SL is checked.
 """
@@ -50,13 +50,14 @@ class Params:
     min_rr: float = 1.0          # skip trades whose target gives < min_rr
     session_start: int = 10      # Plovdiv local hour
     session_end: int = 22
-    flat_at_session_end: bool = True
+    flat_at_session_end: bool = False   # True = force-close open trades at 22:00
     va_pct: float = 0.70
     vp_bins: int = 200
     fee_pct: float = 0.0004      # per side (0.04%)
     risk_pct: float = 0.01       # equity risked per trade
     start_equity: float = 10_000.0
     tz: str = "Europe/Sofia"
+    sides: tuple = ("long", "short")
 
 
 # ----------------------------------------------------------------- data
@@ -255,9 +256,9 @@ def run(df: pd.DataFrame, p: Params):
         if swept_hi:
             active_hi = [x for x in active_hi if x not in swept_hi]
         if pos is None and order is None:
-            if swept_lo and not swept_hi:
+            if swept_lo and not swept_hi and "long" in p.sides:
                 setup = dict(side="long", start=i, level=min(swept_lo), extreme=l[i], time=now)
-            elif swept_hi and not swept_lo:
+            elif swept_hi and not swept_lo and "short" in p.sides:
                 setup = dict(side="short", start=i, level=max(swept_hi), extreme=h[i], time=now)
 
         # --- update 15m swing points (pivot at i-n confirmed at close of bar i)

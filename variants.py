@@ -10,7 +10,7 @@ base = Params()
 variants = {
     "BASE (rules as given)": base,
     "No fees": replace(base, fee_pct=0.0),
-    "Hold past 22:00 (no session close)": replace(base, flat_at_session_end=False),
+    "Force-close at 22:00": replace(base, flat_at_session_end=True),
     "No min R:R filter": replace(base, min_rr=0.0),
     "Min R:R 2": replace(base, min_rr=2.0),
     "4H pivot strength 3": replace(base, piv_4h=3),
@@ -21,6 +21,9 @@ variants = {
     "Retest window 16 bars (4h)": replace(base, retest_bars=16),
     "BOS window 8 bars (2h)": replace(base, setup_bars=8),
     "BOS window 32 bars (8h)": replace(base, setup_bars=32),
+    "Longs only": replace(base, sides=("long",)),
+    "Shorts only": replace(base, sides=("short",)),
+    "Longs only + BOS within 2h": replace(base, sides=("long",), setup_bars=8),
 }
 rows = []
 for name, p in variants.items():

@@ -5,58 +5,66 @@
 
 ## Result (rules as given)
 
+Trades are **opened** only between 10:00 and 22:00 Plovdiv time; once open they run until
+take-profit or stop-loss, overnight if needed (median hold 5.5 h, longest 10 days).
+
 | Trades | Win rate | Avg R | Total R | Profit factor | Return | Max DD |
 |---:|---:|---:|---:|---:|---:|---:|
-| 219 | 35.6% | −0.19 | −40.5 R | 0.66 | −34.0% | −35.0% |
+| 203 | 30.5% | −0.12 | −24.0 R | 0.84 | −23.3% | −28.3% |
 
 ![equity](results/equity.png)
 
 | Exit reason | Trades | Avg R | Sum R |
 |---|---:|---:|---:|
-| Stop loss | 87 | −1.12 | −97.4 |
-| Closed at 22:00 (session end) | 114 | +0.21 | +23.5 |
-| TP at VAH (longs) | 9 | +1.65 | +14.9 |
-| TP at VAL (shorts) | 8 | +2.16 | +17.3 |
-| TP at 4H liquidity | 1 | +1.30 | +1.3 |
+| Stop loss | 141 | −1.10 | −155.5 |
+| TP at VAH (longs) | 34 | +2.34 | +79.7 |
+| TP at VAL (shorts) | 23 | +1.92 | +44.2 |
+| TP at 4H liquidity | 5 | +1.51 | +7.6 |
 
 | Year | Trades | Win rate | Net R |
 |---|---:|---:|---:|
-| 2023 | 39 | 43.6% | −4.8 |
-| 2024 | 60 | 38.3% | −1.5 |
-| 2025 | 70 | 30.0% | −14.2 |
-| 2026 | 50 | 34.0% | −19.9 |
+| 2023 | 37 | 27.0% | −7.6 |
+| 2024 | 57 | 33.3% | +1.7 |
+| 2025 | 65 | 38.5% | +5.8 |
+| 2026 | 44 | 18.2% | −23.9 |
 
-Longs: 99 trades, −15.5 R · Shorts: 120 trades, −24.9 R.
+| Side | Trades | Net R |
+|---|---:|---:|
+| Longs | 93 | **+20.1** |
+| Shorts | 110 | **−44.1** |
 
-**Verdict:** as implemented, the strategy loses on BTC. Every year is negative, both
-directions are negative, and 12 of 13 parameter variants (below) are negative too.
-The one break-even variant (BOS within 2h of the sweep: +1.7 R over 80 trades) is
-within noise, not an edge.
+**Verdict:** with both directions the strategy loses (−23%). The damage comes from the
+**shorts**; the long side is profitable on its own:
 
-Key observations:
-* Only 18 of 219 trades (8%) reach the VAH/VAL/4H-liquidity target before 22:00.
-  The previous day's value area is usually too far away for an intraday hold.
-* More than half of trades are closed at 22:00 for a small average gain (+0.21 R),
-  which cannot pay for the 87 full stop-outs.
-* Fees alone cost ~0.1 R per trade (stops are tight, ~1% of price).
+* **Longs only:** 97 trades, 39% win rate, +24.3 R, PF 1.34, +25.4%, max DD −7.4%
+  (by year: 2023 +8.8 R, 2024 +1.3 R, 2025 +18.3 R, 2026 −4.1 R).
+* **Longs only + BOS within 2h of the sweep:** 41 trades, 49% win rate, +29.8 R, PF 2.26,
+  +33.4%, max DD −4.8%.
+
+Caveats: BTC went from ~$16.5k to ~$78k in this period, so a long bias is partly the market's
+trend; 41–97 trades is a small sample; and the "longs only / 2h" filters were picked *after*
+seeing these results, so they need checking on other data (e.g. 2020–2022, ETH) before being trusted.
 
 ## Sensitivity (`results/variants.csv`)
 
 | Variant | Trades | Win % | Avg R | Total R | PF | Return | Max DD |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| **Base (rules as given)** | 219 | 35.6 | −0.19 | −40.5 | 0.66 | −34.0% | −35.0% |
-| No fees | 219 | 39.3 | −0.09 | −18.6 | 0.81 | −17.9% | −22.1% |
-| Hold past 22:00 | 203 | 30.5 | −0.12 | −24.0 | 0.84 | −23.3% | −28.3% |
-| No min R:R filter | 298 | 40.3 | −0.15 | −43.3 | 0.69 | −36.0% | −37.2% |
-| Min R:R 2 | 139 | 31.7 | −0.21 | −28.6 | 0.65 | −25.5% | −28.2% |
-| 4H pivot strength 3 | 163 | 33.1 | −0.21 | −34.2 | 0.59 | −29.6% | −31.2% |
-| 4H pivot strength 5 | 96 | 31.2 | −0.31 | −29.9 | 0.42 | −26.1% | −26.9% |
-| 15m pivot strength 1 | 346 | 36.1 | −0.13 | −44.7 | 0.76 | −37.6% | −39.1% |
-| 15m pivot strength 3 | 150 | 42.0 | −0.07 | −10.3 | 0.84 | −10.5% | −12.5% |
-| Retest window 1h | 197 | 36.0 | −0.15 | −29.9 | 0.71 | −26.6% | −29.4% |
-| Retest window 4h | 224 | 35.7 | −0.20 | −43.7 | 0.64 | −36.1% | −37.1% |
-| BOS within 2h of sweep | 80 | 48.8 | +0.02 | +1.7 | 1.03 | +1.2% | −13.0% |
-| BOS within 8h of sweep | 323 | 35.3 | −0.21 | −69.0 | 0.62 | −50.7% | −52.0% |
+| **Base (rules as given)** | 203 | 30.5 | −0.12 | −24.0 | 0.84 | −23.3% | −28.3% |
+| No fees | 203 | 30.5 | −0.02 | −4.2 | 0.96 | −6.5% | −19.2% |
+| Force-close at 22:00 | 219 | 35.6 | −0.18 | −40.5 | 0.66 | −34.0% | −35.0% |
+| No min R:R filter | 277 | 40.4 | −0.09 | −23.5 | 0.86 | −23.1% | −29.0% |
+| Min R:R 2 | 133 | 22.6 | −0.20 | −26.3 | 0.77 | −24.6% | −32.1% |
+| 4H pivot strength 3 | 153 | 28.8 | −0.16 | −25.0 | 0.78 | −23.6% | −26.3% |
+| 4H pivot strength 5 | 95 | 22.1 | −0.38 | −35.8 | 0.56 | −30.8% | −31.8% |
+| 15m pivot strength 1 | 317 | 30.0 | +0.07 | +21.4 | 1.05 | +16.1% | −21.8% |
+| 15m pivot strength 3 | 140 | 36.4 | +0.07 | +9.1 | 1.07 | +7.5% | −14.4% |
+| Retest window 4 bars (1h) | 184 | 31.5 | −0.07 | −13.5 | 0.89 | −14.7% | −21.7% |
+| Retest window 16 bars (4h) | 208 | 29.8 | −0.14 | −29.4 | 0.81 | −27.4% | −29.8% |
+| BOS window 8 bars (2h) | 78 | 41.0 | +0.27 | +20.7 | 1.36 | +21.5% | −8.4% |
+| BOS window 32 bars (8h) | 297 | 27.3 | −0.23 | −68.9 | 0.71 | −51.5% | −53.2% |
+| Longs only | 97 | 39.2 | +0.25 | +24.3 | 1.34 | +25.4% | −7.4% |
+| Shorts only | 120 | 24.2 | −0.40 | −47.4 | 0.53 | −38.4% | −38.4% |
+| Longs only + BOS within 2h | 41 | 48.8 | +0.73 | +29.8 | 2.26 | +33.4% | −4.8% |
 
 ## How the rules were coded
 
@@ -77,8 +85,8 @@ parameters in `Params` in `backtest.py`):
 6. **Exit** — long: TP at VAH or the nearest 4H buy-side liquidity above entry, whichever is
    closer (hit first). Short: TP at VAL or nearest 4H sell-side liquidity. Trades whose target
    offers less than 1:1 are skipped.
-7. **Session** — entries only 10:00–22:00 Europe/Sofia (Plovdiv; daylight-saving handled).
-   Unfilled orders are cancelled and open trades closed at 22:00.
+7. **Session** — trades are opened only 10:00–22:00 Europe/Sofia (Plovdiv; daylight-saving
+   handled). Unfilled orders are cancelled at 22:00; open trades keep running to TP/SL.
 8. **Conservative fills** — if stop and target are both inside one candle, the stop counts;
    on the fill candle only the stop is checked. One position at a time.
 
